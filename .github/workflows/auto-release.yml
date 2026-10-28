@@ -1,12 +1,12 @@
-name: Release New Version
+name: Release All Versions
 
 on:
   schedule:
-    - cron: '30 0 * * *' # Roda todo dia às 00:30 (logo após a sincronização)
-  workflow_dispatch: # Permite rodar manualmente a qualquer momento
+    - cron: '30 0 * * *'
+  workflow_dispatch:
 
 jobs:
-  check-and-release:
+  release-all:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -26,26 +26,25 @@ jobs:
           git remote add upstream https://github.com/yt-dlp/yt-dlp.git || true
           git fetch upstream --tags
 
-      - name: Sync and Create Release
+      - name: Create Missing Releases
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Pega a tag mais recente do upstream
-          LATEST_TAG=$(git tag -l --sort=-v:refname | head -n 1)
+          # Pega todas as tags do yt-dlp ordenadas da mais antiga para a mais recente
+          TAGS=$(git tag -l --sort=v:refname)
           
-          if [ -n "$LATEST_TAG" ]; then
-            echo "A tag mais recente encontrada é: $LATEST_TAG"
+          for TAG in $TAGS; do
+            # Ignora tags de teste ou pré-lançamento indesejadas se necessário
+            echo "A verificar a tag: $TAG"
             
-            # Garante que a tag está no seu repositório remoto (origin)
-            git push origin "$LATEST_TAG" || true
+            # Garante que a tag está no seu fork
+            git push origin "$TAG" || true
             
-            # Cria a release caso ela ainda não exista
-            if ! gh release view "$LATEST_TAG" >/dev/null 2>&1; then
-              echo "Criando nova release para $LATEST_TAG..."
-              gh release create "$LATEST_TAG" --title "yt-dlp $LATEST_TAG" --notes "Release sincronizada automaticamente a partir do repositório oficial do yt-dlp."
+            # Se a release ainda não existir, cria-a automaticamente
+            if ! gh release view "$TAG" >/dev/null 2>&1; then
+              echo "A criar release em falta para: $TAG"
+              gh release create "$TAG" --title "yt-dlp $TAG" --notes "Release sincronizada automaticamente a partir do repositório oficial do yt-dlp."
             else
-              echo "A release $LATEST_TAG já existe no repositório."
+              echo "A release $TAG já existe."
             fi
-          else
-            echo "Nenhuma tag encontrada."
-          fi
+          done
