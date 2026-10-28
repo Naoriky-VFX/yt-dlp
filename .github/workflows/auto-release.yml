@@ -1,12 +1,12 @@
-name: Release All Versions
+name: Auto Release
 
 on:
   schedule:
-    - cron: '30 0 * * *'
-  workflow_dispatch:
+    - cron: '30 0 * * *' # Executa diariamente às 00:30 UTC
+  workflow_dispatch: # Permite execução manual
 
 jobs:
-  release-all:
+  release-latest:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -26,25 +26,20 @@ jobs:
           git remote add upstream https://github.com/yt-dlp/yt-dlp.git || true
           git fetch upstream --tags
 
-      - name: Create Missing Releases
+      - name: Create Release for Latest Tag
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Pega todas as tags do yt-dlp ordenadas da mais antiga para a mais recente
-          TAGS=$(git tag -l --sort=v:refname)
+          LATEST_TAG=$(git tag -l --sort=-v:refname | head -n 1)
           
-          for TAG in $TAGS; do
-            # Ignora tags de teste ou pré-lançamento indesejadas se necessário
-            echo "A verificar a tag: $TAG"
+          if [ -n "$LATEST_TAG" ]; then
+            echo "Última tag encontrada: $LATEST_TAG"
+            git push origin "$LATEST_TAG" || true
             
-            # Garante que a tag está no seu fork
-            git push origin "$TAG" || true
-            
-            # Se a release ainda não existir, cria-a automaticamente
-            if ! gh release view "$TAG" >/dev/null 2>&1; then
-              echo "A criar release em falta para: $TAG"
-              gh release create "$TAG" --title "yt-dlp $TAG" --notes "Release sincronizada automaticamente a partir do repositório oficial do yt-dlp."
+            if ! gh release view "$LATEST_TAG" >/dev/null 2>&1; then
+              echo "A criar nova release para: $LATEST_TAG"
+              gh release create "$LATEST_TAG" --title "yt-dlp $LATEST_TAG" --notes "Release sincronizada automaticamente a partir do repositório oficial do yt-dlp."
             else
-              echo "A release $TAG já existe."
+              echo "A release $LATEST_TAG já existe."
             fi
-          done
+          fi
