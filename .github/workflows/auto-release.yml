@@ -3,7 +3,7 @@ name: Release New Version
 on:
   schedule:
     - cron: '30 0 * * *' # Roda todo dia às 00:30 (logo após a sincronização)
-  workflow_dispatch: # Permite rodar manualmente se preferir
+  workflow_dispatch: # Permite rodar manualmente a qualquer momento
 
 jobs:
   check-and-release:
@@ -16,36 +16,36 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check latest upstream tag
-        id: upstream_tag
+      - name: Configure Git Identity
         run: |
-          # Pega a tag mais recente do repositório oficial do yt-dlp
-          LATEST_TAG=$(git ls-remote --tags --refs --sort="v:refname" https://github.com/yt-dlp/yt-dlp.git | tail -n1 | sed 's|refs/tags/||')
-          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
-          
-          # Pega a última tag existente no seu fork
-          CURRENT_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
-          echo "current_tag=$CURRENT_TAG" >> $GITHUB_OUTPUT
-          
-          echo "Latest upstream: $LATEST_TAG"
-          echo "Current fork: $CURRENT_TAG"
-
-      - name: Sync tags and create Release if new version exists
-        if: steps.upstream_tag.outputs.latest_tag != steps.upstream_tag.outputs.current_tag
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NEW_TAG: ${{ steps.upstream_tag.outputs.latest_tag }}
-        run: |
-          # Configura identidade do Git
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # Puxa as tags do upstream
-          git remote add upstream https://github.com/yt-dlp/yt-dlp.git
+
+      - name: Fetch upstream tags
+        run: |
+          git remote add upstream https://github.com/yt-dlp/yt-dlp.git || true
           git fetch upstream --tags
+
+      - name: Sync and Create Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Pega a tag mais recente do upstream
+          LATEST_TAG=$(git tag -l --sort=-v:refname | head -n 1)
           
-          # Dá push da nova tag para o seu repositório
-          git push origin $NEW_TAG
-          
-          # Cria a Release no GitHub automaticamente para essa tag
-          gh release create "$NEW_TAG" --title "yt-dlp $NEW_TAG" --notes "Atualização automática sincronizada com o repositório oficial do yt-dlp."
+          if [ -n "$LATEST_TAG" ]; then
+            echo "A tag mais recente encontrada é: $LATEST_TAG"
+            
+            # Garante que a tag está no seu repositório remoto (origin)
+            git push origin "$LATEST_TAG" || true
+            
+            # Cria a release caso ela ainda não exista
+            if ! gh release view "$LATEST_TAG" >/dev/null 2>&1; then
+              echo "Criando nova release para $LATEST_TAG..."
+              gh release create "$LATEST_TAG" --title "yt-dlp $LATEST_TAG" --notes "Release sincronizada automaticamente a partir do repositório oficial do yt-dlp."
+            else
+              echo "A release $LATEST_TAG já existe no repositório."
+            fi
+          else
+            echo "Nenhuma tag encontrada."
+          fi
