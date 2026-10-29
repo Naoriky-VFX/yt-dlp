@@ -33,51 +33,27 @@ jobs:
 
       - name: Build with PyInstaller
         run: |
-          # Caminhos corrigidos para a estrutura oficial do yt-dlp
           python devscripts/make_lazy_loader.py
           pyinstaller yt_dlp/__main__.py --onefile --name yt-dlp --clean
 
-      - name: Create Release and Upload Executable via REST API
+      - name: Create Release and Upload Executable
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: pwsh
         run: |
           $TAG = Get-Date -Format "yyyy.MM.dd"
           Write-Host "A processar versão: $TAG"
 
+          # Remove tag anterior caso já exista
           git tag -d $TAG 2>$null
           git push origin --delete $TAG 2>$null
 
+          # Cria e envia a nova tag
           git tag $TAG
           git push origin $TAG
 
-          $repo = "${{ github.repository }}"
-          $headers = @{
-              "Authorization" = "token $env:GITHUB_TOKEN"
-              "Accept" = "application/vnd.github+json"
-          }
-
-          $releaseBody = @{
-              tag_name = $TAG
-              name = "yt-dlp $TAG"
-              body = "Versão compilada automaticamente para Windows em $(Get-Date -Format 'dd/MM/yyyy')."
-              draft = $false
-              prerelease = $false
-          } | ConvertTo-Json
-
-          $createReleaseUri = "https://api.github.com/repos/$repo/releases"
-          $releaseResponse = Invoke-RestMethod -Uri $createReleaseUri -Method Post -Headers $headers -Body $releaseBody
-          $uploadUrl = $releaseResponse.upload_url -replace '\{\?name,label\}', ''
-
-          $filePath = "dist/yt-dlp.exe"
-          $fileName = "yt-dlp.exe"
-          $fileBytes = [System.IO.File]::ReadAllBytes($filePath)
-          $uploadUri = "$uploadUrl?name=$fileName"
+          # Cria a Release oficial e envia o yt-dlp.exe num só passo com a CLI do GitHub
+          gh release create $TAG --title "yt-dlp $TAG" --notes "Versão compilada automaticamente para Windows em $(Get-Date -Format 'dd/MM/yyyy')." --clobber
+          gh release upload $TAG "dist/yt-dlp.exe" --clobber
           
-          $uploadHeaders = @{
-              "Authorization" = "token $env:GITHUB_TOKEN"
-              "Content-Type" = "application/octet-stream"
-          }
-
-          Invoke-RestMethod -Uri $uploadUri -Method Post -Headers $uploadHeaders -Body $fileBytes
-          Write-Host "yt-dlp.exe enviado com sucesso para os assets!"
+          Write-Host "Sucesso! yt-dlp.exe compilado e enviado para a release $TAG."
