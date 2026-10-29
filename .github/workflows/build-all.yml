@@ -80,7 +80,8 @@ jobs:
 
       - name: Build with PyInstaller
         run: |
-          python $(find . -name "make_lazy_loader.py" -print -quit)
+          # Envolvido em aspas para satisfazer o ShellCheck / actionlint
+          python "$(find . -name "make_lazy_loader.py" -print -quit)"
           pyinstaller yt_dlp/__main__.py ${{ matrix.pyinstaller_args }}
 
       - name: Package into ZIP as well
@@ -139,7 +140,7 @@ jobs:
           git tag "$TAG"
           git push origin "$TAG"
 
-          gh release create "$TAG" --title "yt-dlp $TAG" --notes "Versão compilada automaticamente para Windows, Linux (x64, aarch64, musl) e macOS em $(date +'%d/%m/%Y')." || true
+          gh release create "$TAG" --title "yt-dlp $TAG" --notes "Versão compilada automaticamente para Windows, Linux e macOS em $(date +'%d/%m/%Y')." || true
 
           # Envia todos os binários e ficheiros .zip gerados para os assets da release
           shopt -s globstar nullglob
@@ -150,4 +151,4 @@ jobs:
             fi
           done
           
-          echo "Sucesso! Todas as versões, arquiteturas e ficheiros zip foram compilados e enviados para a release $TAG."
+          echo "Sucesso! Todas as versões e ficheiros zip foram compilados e enviados para a release $TAG."
