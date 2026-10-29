@@ -33,9 +33,10 @@ jobs:
 
       - name: Build with PyInstaller
         run: |
-          python devscripts/make_lazy_loader.py
-          # Ponto de entrada correto para o PyInstaller no yt-dlp
-          pyinstaller yt-dlp/__main__.py --onefile --name yt-dlp --clean
+          # Executa o script de lazy loader dentro do diretório correto se necessário, ou compila direto o pacote
+          python yt-dlp/devscripts/make_lazy_loader.py
+          pyinstaller yt-dlp/yt_dlp.py --onefile --name yt-dlp --clean
+          # Nota: Se o executável gerar em dist/, garantimos que ele fica lá
 
       - name: Create Release and Upload Executable via REST API
         env:
@@ -45,22 +46,18 @@ jobs:
           $TAG = Get-Date -Format "yyyy.MM.dd"
           Write-Host "A processar versão: $TAG"
 
-          # Remove tag anterior se já existir localmente ou remotamente
           git tag -d $TAG 2>$null
           git push origin --delete $TAG 2>$null
 
-          # Cria e envia a nova tag
           git tag $TAG
           git push origin $TAG
 
-          # Utiliza a API REST do GitHub
           $repo = "${{ github.repository }}"
           $headers = @{
               "Authorization" = "token $env:GITHUB_TOKEN"
               "Accept" = "application/vnd.github+json"
           }
 
-          # 1. Cria a Release
           $releaseBody = @{
               tag_name = $TAG
               name = "yt-dlp $TAG"
@@ -72,9 +69,7 @@ jobs:
           $createReleaseUri = "https://api.github.com/repos/$repo/releases"
           $releaseResponse = Invoke-RestMethod -Uri $createReleaseUri -Method Post -Headers $headers -Body $releaseBody
           $uploadUrl = $releaseResponse.upload_url -replace '\{\?name,label\}', ''
-          Write-Host "Release criada com sucesso!"
 
-          # 2. Faz o upload do yt-dlp.exe gerado na pasta dist/
           $filePath = "dist/yt-dlp.exe"
           $fileName = "yt-dlp.exe"
           $fileBytes = [System.IO.File]::ReadAllBytes($filePath)
@@ -86,4 +81,4 @@ jobs:
           }
 
           Invoke-RestMethod -Uri $uploadUri -Method Post -Headers $uploadHeaders -Body $fileBytes
-          Write-Host "yt-dlp.exe enviado com sucesso para os assets!"
+          Write-Host "yt-dlp.exe enviado com sucesso!"
