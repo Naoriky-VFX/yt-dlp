@@ -34,10 +34,18 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Install dependencies
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
           pip install pyinstaller
 
       - name: Build with PyInstaller
@@ -80,18 +88,14 @@ jobs:
           TAG=$(date +"%Y.%m.%d")
           echo "A processar versão: $TAG"
 
-          # Remove tag anterior se já existir para atualizar o dia
           git tag -d "$TAG" 2>/dev/null || true
           git push origin --delete "$TAG" 2>/dev/null || true
 
-          # Cria e envia a nova tag
           git tag "$TAG"
           git push origin "$TAG"
 
-          # Cria a Release oficial no GitHub
           gh release create "$TAG" --title "yt-dlp $TAG" --notes "Versão compilada automaticamente para Windows e Linux em $(date +'%d/%m/%Y')." --clobber
 
-          # Envia todos os binários gerados para os assets da release (procura recursivamente dentro da pasta de downloads)
           find all-assets -type f -exec gh release upload "$TAG" {} +
           
           echo "Sucesso! Todas as versões foram compiladas e enviadas para a release $TAG."
