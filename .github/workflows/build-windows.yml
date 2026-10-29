@@ -2,7 +2,7 @@ name: Build Windows Executable
 
 on:
   release:
-    types: [published] # Dispara assim que uma nova Release for publicada
+    types: [published] # Dispara automaticamente assim que uma nova Release for publicada
 
 jobs:
   build-win:
@@ -10,7 +10,8 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -35,5 +36,5 @@ jobs:
         shell: pwsh
         run: |
           $tag = "${{ github.event.release.tag_name }}"
-          # Anexa o yt-dlp.exe gerado diretamente à release correspondente
+          echo "A enviar o yt-dlp.exe para a release: $tag"
           gh release upload $tag "dist/yt-dlp.exe" --clobber
