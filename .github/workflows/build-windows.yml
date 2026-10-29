@@ -1,0 +1,39 @@
+name: Build Windows Executable
+
+on:
+  release:
+    types: [published] # Dispara assim que uma nova Release for publicada
+
+jobs:
+  build-win:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build with PyInstaller
+        run: |
+          python devscripts/make_lazy_loader.py
+          pyinstaller yt-dlp.py --onefile --name yt-dlp --clean
+
+      - name: Upload .exe to Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $tag = "${{ github.event.release.tag_name }}"
+          # Anexa o yt-dlp.exe gerado diretamente à release correspondente
+          gh release upload $tag "dist/yt-dlp.exe" --clobber
