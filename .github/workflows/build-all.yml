@@ -50,7 +50,6 @@ jobs:
 
       - name: Build with PyInstaller
         run: |
-          # Encontra o ficheiro de lazy loader independentemente de subpastas de clone
           python $(find . -name "make_lazy_loader.py" -print -quit)
           pyinstaller yt_dlp/__main__.py ${{ matrix.pyinstaller_args }}
 
@@ -95,8 +94,10 @@ jobs:
           git tag "$TAG"
           git push origin "$TAG"
 
-          gh release create "$TAG" --title "yt-dlp $TAG" --notes "Versão compilada automaticamente para Windows e Linux em $(date +'%d/%m/%Y')." --clobber
+          # Cria a release sem a flag --clobber inválida (se já existir, usa a existente)
+          gh release create "$TAG" --title "yt-dlp $TAG" --notes "Versão compilada automaticamente para Windows e Linux em $(date +'%d/%m/%Y')." || true
 
-          find all-assets -type f -exec gh release upload "$TAG" {} +
+          # Envia todos os binários gerados para os assets usando --clobber para sobrescrever se necessário
+          find all-assets -type f -exec gh release upload "$TAG" {} + --clobber
           
           echo "Sucesso! Todas as versões foram compiladas e enviadas para a release $TAG."
