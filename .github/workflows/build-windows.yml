@@ -34,7 +34,8 @@ jobs:
       - name: Build with PyInstaller
         run: |
           python devscripts/make_lazy_loader.py
-          pyinstaller yt-dlp.py --onefile --name yt-dlp --clean
+          # Ponto de entrada correto para o PyInstaller no yt-dlp
+          pyinstaller yt-dlp/__main__.py --onefile --name yt-dlp --clean
 
       - name: Create Release and Upload Executable via REST API
         env:
@@ -52,7 +53,7 @@ jobs:
           git tag $TAG
           git push origin $TAG
 
-          # Utiliza a API REST do GitHub diretamente (evita problemas de autenticação do CLI)
+          # Utiliza a API REST do GitHub
           $repo = "${{ github.repository }}"
           $headers = @{
               "Authorization" = "token $env:GITHUB_TOKEN"
@@ -73,7 +74,7 @@ jobs:
           $uploadUrl = $releaseResponse.upload_url -replace '\{\?name,label\}', ''
           Write-Host "Release criada com sucesso!"
 
-          # 2. Faz o upload do yt-dlp.exe
+          # 2. Faz o upload do yt-dlp.exe gerado na pasta dist/
           $filePath = "dist/yt-dlp.exe"
           $fileName = "yt-dlp.exe"
           $fileBytes = [System.IO.File]::ReadAllBytes($filePath)
