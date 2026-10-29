@@ -50,7 +50,8 @@ jobs:
 
       - name: Build with PyInstaller
         run: |
-          python devscripts/make_lazy_loader.py
+          # Encontra o ficheiro de lazy loader independentemente de subpastas de clone
+          python $(find . -name "make_lazy_loader.py" -print -quit)
           pyinstaller yt_dlp/__main__.py ${{ matrix.pyinstaller_args }}
 
       - name: Upload Artifact
