@@ -33,10 +33,9 @@ jobs:
 
       - name: Build with PyInstaller
         run: |
-          # Executa o script de lazy loader dentro do diretório correto se necessário, ou compila direto o pacote
-          python yt-dlp/devscripts/make_lazy_loader.py
-          pyinstaller yt-dlp/yt_dlp.py --onefile --name yt-dlp --clean
-          # Nota: Se o executável gerar em dist/, garantimos que ele fica lá
+          # Caminhos corrigidos para a estrutura oficial do yt-dlp
+          python devscripts/make_lazy_loader.py
+          pyinstaller yt_dlp/__main__.py --onefile --name yt-dlp --clean
 
       - name: Create Release and Upload Executable via REST API
         env:
@@ -81,4 +80,4 @@ jobs:
           }
 
           Invoke-RestMethod -Uri $uploadUri -Method Post -Headers $uploadHeaders -Body $fileBytes
-          Write-Host "yt-dlp.exe enviado com sucesso!"
+          Write-Host "yt-dlp.exe enviado com sucesso para os assets!"
