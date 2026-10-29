@@ -1,7 +1,7 @@
 name: Build Windows by Date
 
 on:
-  workflow_dispatch: # Permite que você clique num botão e crie uma versão nova quando quiser
+  workflow_dispatch:
 
 jobs:
   build-and-release:
@@ -18,25 +18,6 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Generate Version by Date
-        id: date_version
-        shell: pwsh
-        run: |
-          # Pega a data atual no formato AAAA.MM.DD (ex: 2026.10.28)
-          $TODAY = Get-Date -Format "yyyy.MM.dd"
-          $VERSION = $TODAY
-          
-          # Verifica se a tag já existe no repositório e adiciona um sufixo numérico se necessário
-          $existingTags = git tag -l
-          $counter = 1
-          while ($existingTags -contains $VERSION) {
-              $VERSION = "$TODAY.$counter"
-              $counter++
-          }
-          
-          echo "VERSION=$VERSION" >> $env:GITHUB_OUTPUT
-          Write-Host "Versão gerada para hoje: $VERSION"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -55,19 +36,25 @@ jobs:
           python devscripts/make_lazy_loader.py
           pyinstaller yt-dlp.py --onefile --name yt-dlp --clean
 
-      - name: Create Git Tag and Release
+      - name: Create Release and Upload Executable
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: pwsh
         run: |
-          $TAG = "${{ steps.date_version.outputs.VERSION }}"
-          
-          # Cria a tag localmente e envia para o repositório
+          # Gera a versão baseada na data atual (ex: 2026.10.28)
+          $TAG = Get-Date -Format "yyyy.MM.dd"
+          Write-Host "A criar release para a versão: $TAG"
+
+          # Se a tag já existir, apaga a tag antiga e a release para forçar a nova compilação do dia
+          git tag -d $TAG 2>$null
+          git push origin --delete $TAG 2>$null
+
+          # Cria a nova tag e envia
           git tag $TAG
           git push origin $TAG
-          
-          # Cria a Release oficial no GitHub para essa data
-          gh release create $TAG --title "yt-dlp $TAG" --notes "Versão compilada para Windows em $(Get-Date -Format 'dd/MM/yyyy')."
-          
-          # Anexa o .exe gerado aos assets da release
+
+          # Cria a Release no GitHub
+          gh release create $TAG --title "yt-dlp $TAG" --notes "Versão compilada automaticamente para Windows em $(Get-Date -Format 'dd/MM/yyyy')." --clobber
+
+          # Envia o yt-dlp.exe para os assets
           gh release upload $TAG "dist/yt-dlp.exe" --clobber
