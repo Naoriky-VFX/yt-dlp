@@ -80,8 +80,8 @@ jobs:
 
       - name: Build with PyInstaller
         run: |
-          # Envolvido em aspas para satisfazer o ShellCheck / actionlint
-          python "$(find . -name "make_lazy_loader.py" -print -quit)"
+          # Caminho direto e compatível com qualquer sistema operativo
+          python devscripts/make_lazy_loader.py
           pyinstaller yt_dlp/__main__.py ${{ matrix.pyinstaller_args }}
 
       - name: Package into ZIP as well
@@ -142,7 +142,6 @@ jobs:
 
           gh release create "$TAG" --title "yt-dlp $TAG" --notes "Versão compilada automaticamente para Windows, Linux e macOS em $(date +'%d/%m/%Y')." || true
 
-          # Envia todos os binários e ficheiros .zip gerados para os assets da release
           shopt -s globstar nullglob
           for file in all-assets/**/*; do
             if [ -f "$file" ]; then
