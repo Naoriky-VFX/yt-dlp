@@ -94,10 +94,16 @@ jobs:
           git tag "$TAG"
           git push origin "$TAG"
 
-          # Cria a release sem a flag --clobber inválida (se já existir, usa a existente)
+          # Cria a release do dia
           gh release create "$TAG" --title "yt-dlp $TAG" --notes "Versão compilada automaticamente para Windows e Linux em $(date +'%d/%m/%Y')." || true
 
-          # Envia todos os binários gerados para os assets usando --clobber para sobrescrever se necessário
-          find all-assets -type f -exec gh release upload "$TAG" {} + --clobber
+          # Envia cada binário encontrado para os assets sobrescrevendo com --clobber
+          shopt -s globstar nullglob
+          for file in all-assets/**/*; do
+            if [ -f "$file" ]; then
+              echo "A enviar $file para a release..."
+              gh release upload "$TAG" "$file" --clobber
+            fi
+          done
           
           echo "Sucesso! Todas as versões foram compiladas e enviadas para a release $TAG."
