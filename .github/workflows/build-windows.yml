@@ -25,11 +25,12 @@ jobs:
         run: |
           # Pega a data atual no formato AAAA.MM.DD (ex: 2026.10.28)
           $TODAY = Get-Date -Format "yyyy.MM.dd"
-          
-          # Se já houver um build no mesmo dia, adiciona um sufixo numérico (ex: 2026.10.28.1)
-          $counter = 1
           $VERSION = $TODAY
-          while (git tag -l |-eq "$VERSION") {
+          
+          # Verifica se a tag já existe no repositório e adiciona um sufixo numérico se necessário
+          $existingTags = git tag -l
+          $counter = 1
+          while ($existingTags -contains $VERSION) {
               $VERSION = "$TODAY.$counter"
               $counter++
           }
