@@ -36,25 +36,53 @@ jobs:
           python devscripts/make_lazy_loader.py
           pyinstaller yt-dlp.py --onefile --name yt-dlp --clean
 
-      - name: Create Release and Upload Executable
+      - name: Create Release and Upload Executable via REST API
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: pwsh
         run: |
-          # Gera a versão baseada na data atual (ex: 2026.10.28)
           $TAG = Get-Date -Format "yyyy.MM.dd"
-          Write-Host "A criar release para a versão: $TAG"
+          Write-Host "A processar versão: $TAG"
 
-          # Se a tag já existir, apaga a tag antiga e a release para forçar a nova compilação do dia
+          # Remove tag anterior se já existir localmente ou remotamente
           git tag -d $TAG 2>$null
           git push origin --delete $TAG 2>$null
 
-          # Cria a nova tag e envia
+          # Cria e envia a nova tag
           git tag $TAG
           git push origin $TAG
 
-          # Cria a Release no GitHub
-          gh release create $TAG --title "yt-dlp $TAG" --notes "Versão compilada automaticamente para Windows em $(Get-Date -Format 'dd/MM/yyyy')." --clobber
+          # Utiliza a API REST do GitHub diretamente (evita problemas de autenticação do CLI)
+          $repo = "${{ github.repository }}"
+          $headers = @{
+              "Authorization" = "token $env:GITHUB_TOKEN"
+              "Accept" = "application/vnd.github+json"
+          }
 
-          # Envia o yt-dlp.exe para os assets
-          gh release upload $TAG "dist/yt-dlp.exe" --clobber
+          # 1. Cria a Release
+          $releaseBody = @{
+              tag_name = $TAG
+              name = "yt-dlp $TAG"
+              body = "Versão compilada automaticamente para Windows em $(Get-Date -Format 'dd/MM/yyyy')."
+              draft = $false
+              prerelease = $false
+          } | ConvertTo-Json
+
+          $createReleaseUri = "https://api.github.com/repos/$repo/releases"
+          $releaseResponse = Invoke-RestMethod -Uri $createReleaseUri -Method Post -Headers $headers -Body $releaseBody
+          $uploadUrl = $releaseResponse.upload_url -replace '\{\?name,label\}', ''
+          Write-Host "Release criada com sucesso!"
+
+          # 2. Faz o upload do yt-dlp.exe
+          $filePath = "dist/yt-dlp.exe"
+          $fileName = "yt-dlp.exe"
+          $fileBytes = [System.IO.File]::ReadAllBytes($filePath)
+          $uploadUri = "$uploadUrl?name=$fileName"
+          
+          $uploadHeaders = @{
+              "Authorization" = "token $env:GITHUB_TOKEN"
+              "Content-Type" = "application/octet-stream"
+          }
+
+          Invoke-RestMethod -Uri $uploadUri -Method Post -Headers $uploadHeaders -Body $fileBytes
+          Write-Host "yt-dlp.exe enviado com sucesso para os assets!"
