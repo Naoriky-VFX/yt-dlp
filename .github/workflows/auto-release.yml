@@ -30,10 +30,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          LATEST_TAG=$(git tag -l --sort=-v:refname | head -n 1)
+          # Pega apenas as tags que começam com "20" (ex: 2026.10.26) ordenadas da mais recente para a mais antiga
+          LATEST_TAG=$(git tag -l '20*' --sort=-v:refname | head -n 1)
           
           if [ -n "$LATEST_TAG" ]; then
-            echo "Última tag encontrada: $LATEST_TAG"
+            echo "Última tag válida encontrada: $LATEST_TAG"
             git push origin "$LATEST_TAG" || true
             
             if ! gh release view "$LATEST_TAG" >/dev/null 2>&1; then
@@ -42,4 +43,6 @@ jobs:
             else
               echo "A release $LATEST_TAG já existe."
             fi
+          else
+            echo "Nenhuma tag válida encontrada."
           fi
